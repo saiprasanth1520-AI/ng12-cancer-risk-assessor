@@ -1,0 +1,14 @@
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+.env
+chroma_db/
+data/ng12_guidelines.pdf
+*.egg
+.venv/
+venv/
+.idea/
+.vscode/
+*.DS_Store

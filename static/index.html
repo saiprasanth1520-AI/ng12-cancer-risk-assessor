@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NG12 Cancer Risk Assessor</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f5f7fa; color: #1a1a2e; }
+    header { background: #16213e; color: #fff; padding: 1rem 2rem; }
+    header h1 { font-size: 1.4rem; font-weight: 600; }
+    header p { font-size: 0.85rem; opacity: 0.8; margin-top: 0.25rem; }
+
+    .tabs { display: flex; background: #1a1a2e; }
+    .tab-btn { flex: 1; padding: 0.75rem; text-align: center; color: #aaa; cursor: pointer; border: none; background: none; font-size: 0.95rem; border-bottom: 3px solid transparent; transition: 0.2s; }
+    .tab-btn.active { color: #fff; border-bottom-color: #e94560; }
+    .tab-btn:hover { color: #fff; }
+
+    .tab-content { display: none; padding: 1.5rem 2rem; max-width: 900px; margin: 0 auto; }
+    .tab-content.active { display: block; }
+
+    label { display: block; font-weight: 600; margin-bottom: 0.3rem; font-size: 0.9rem; }
+    select, input[type="text"] { width: 100%; padding: 0.6rem 0.8rem; border: 1px solid #ccc; border-radius: 6px; font-size: 0.95rem; margin-bottom: 1rem; }
+    button.primary { background: #e94560; color: #fff; border: none; padding: 0.65rem 1.6rem; border-radius: 6px; cursor: pointer; font-size: 0.95rem; }
+    button.primary:disabled { opacity: 0.5; cursor: not-allowed; }
+    button.primary:hover:not(:disabled) { background: #c73652; }
+
+    .result-box { margin-top: 1.5rem; background: #fff; border-radius: 8px; padding: 1.25rem; box-shadow: 0 1px 4px rgba(0,0,0,0.08); }
+    .result-box h3 { margin-bottom: 0.75rem; font-size: 1.05rem; }
+    .badge { display: inline-block; padding: 0.25rem 0.75rem; border-radius: 20px; font-size: 0.8rem; font-weight: 600; color: #fff; }
+    .badge.urgent-referral { background: #e94560; }
+    .badge.urgent-investigation { background: #e77f00; }
+    .badge.non-urgent { background: #3490dc; }
+    .badge.no-indicators { background: #38c172; }
+    .badge.error { background: #888; }
+
+    .field { margin-bottom: 0.75rem; }
+    .field-label { font-size: 0.8rem; color: #666; text-transform: uppercase; letter-spacing: 0.03em; }
+    .field-value { font-size: 0.95rem; margin-top: 0.15rem; line-height: 1.5; }
+
+    .citation { background: #f8f9fa; border-left: 3px solid #e94560; padding: 0.6rem 0.8rem; margin-bottom: 0.5rem; border-radius: 0 4px 4px 0; font-size: 0.85rem; }
+    .citation-page { font-weight: 600; color: #e94560; }
+
+    /* Chat styles */
+    .chat-window { background: #fff; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,0.08); height: 450px; overflow-y: auto; padding: 1rem; margin-bottom: 1rem; }
+    .chat-msg { margin-bottom: 1rem; }
+    .chat-msg.user .bubble { background: #16213e; color: #fff; margin-left: 20%; }
+    .chat-msg.assistant .bubble { background: #f0f2f5; margin-right: 20%; }
+    .bubble { padding: 0.7rem 1rem; border-radius: 12px; line-height: 1.5; font-size: 0.9rem; white-space: pre-wrap; }
+    .chat-msg .role-tag { font-size: 0.7rem; color: #888; margin-bottom: 0.2rem; text-transform: uppercase; }
+    .chat-input-row { display: flex; gap: 0.5rem; }
+    .chat-input-row input { flex: 1; }
+    .chat-citations { margin-top: 0.5rem; }
+    .chat-citations summary { cursor: pointer; font-size: 0.8rem; color: #e94560; }
+
+    .spinner { display: inline-block; width: 18px; height: 18px; border: 2px solid #fff; border-top-color: transparent; border-radius: 50%; animation: spin 0.6s linear infinite; vertical-align: middle; margin-right: 0.4rem; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .error-msg { color: #e94560; background: #fff0f2; padding: 0.75rem; border-radius: 6px; margin-top: 1rem; }
+    .grounding-warning { background: #fff8e1; border-left: 4px solid #f9a825; padding: 0.65rem 0.9rem; border-radius: 0 6px 6px 0; margin-top: 0.5rem; font-size: 0.85rem; color: #6d4c00; }
+    .grounding-warning strong { color: #e65100; }
+    .disclaimer-banner { background: #fff9c4; border: 1px solid #f9a825; border-radius: 6px; padding: 0.7rem 1rem; margin-top: 0.75rem; font-size: 0.8rem; color: #5d4037; line-height: 1.4; }
+    .disclaimer-banner strong { color: #e65100; }
+
+    /* Evaluation panel styles */
+    .eval-panel { margin-top: 1rem; background: #f8f9ff; border: 1px solid #d0d7f7; border-radius: 8px; padding: 1rem 1.25rem; }
+    .eval-panel h4 { font-size: 0.9rem; color: #16213e; margin-bottom: 0.6rem; display: flex; align-items: center; gap: 0.5rem; }
+    .eval-spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid #3490dc; border-top-color: transparent; border-radius: 50%; animation: spin 0.6s linear infinite; }
+    .eval-criteria { display: grid; grid-template-columns: 1fr 1fr; gap: 0.4rem; }
+    .eval-criterion { display: flex; align-items: center; gap: 0.4rem; font-size: 0.82rem; padding: 0.35rem 0.5rem; background: #fff; border-radius: 4px; }
+    .eval-verdict { font-weight: 700; font-size: 0.75rem; padding: 0.15rem 0.5rem; border-radius: 10px; }
+    .eval-verdict.pass { background: #d4edda; color: #155724; }
+    .eval-verdict.fail { background: #f8d7da; color: #721c24; }
+    .eval-overall { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem; font-size: 0.85rem; }
+    .eval-overall .eval-verdict { font-size: 0.8rem; }
+    .eval-reasoning { font-size: 0.78rem; color: #555; margin-top: 0.15rem; line-height: 1.3; }
+    .eval-criterion details { width: 100%; }
+    .eval-criterion summary { cursor: pointer; display: flex; align-items: center; gap: 0.4rem; }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>NG12 Cancer Risk Assessor</h1>
+  <p>Clinical Decision Support &mdash; NICE NG12 Guidelines &times; Gemini 2.5 Pro</p>
+</header>
+
+<div class="tabs">
+  <button class="tab-btn active" onclick="switchTab('assess')">Risk Assessment</button>
+  <button class="tab-btn" onclick="switchTab('chat')">Chat with NG12</button>
+</div>
+
+<!-- ═══════════════ TAB 1: RISK ASSESSMENT ═══════════════ -->
+<div id="tab-assess" class="tab-content active">
+  <h2 style="margin-bottom:1rem;">Patient Risk Assessment</h2>
+  <label for="patient-select">Select Patient</label>
+  <select id="patient-select"><option value="">Loading patients...</option></select>
+  <button class="primary" id="assess-btn" onclick="runAssessment()">Assess Risk</button>
+  <div id="assess-result"></div>
+  <div id="assess-eval"></div>
+</div>
+
+<!-- ═══════════════ TAB 2: CHAT ═══════════════ -->
+<div id="tab-chat" class="tab-content">
+  <h2 style="margin-bottom:1rem;">Ask the NG12 Guidelines</h2>
+  <div class="chat-window" id="chat-window"></div>
+  <div class="chat-input-row">
+    <input type="text" id="chat-input" placeholder="e.g. What symptoms trigger an urgent referral for lung cancer?" onkeydown="if(event.key==='Enter')sendChat()" />
+    <button class="primary" id="chat-btn" onclick="sendChat()">Send</button>
+  </div>
+  <div id="chat-eval"></div>
+</div>
+
+<script>
+// ── Tabs ──────────────────────────────────────────────────────────────
+function switchTab(name) {
+  document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+  document.querySelector(`.tab-btn[onclick*="${name}"]`).classList.add('active');
+}
+
+// ── Load patients on page load ────────────────────────────────────────
+async function loadPatients() {
+  try {
+    const res = await fetch('/patients');
+    const patients = await res.json();
+    const sel = document.getElementById('patient-select');
+    sel.innerHTML = '<option value="">-- choose a patient --</option>';
+    patients.forEach(p => {
+      const opt = document.createElement('option');
+      opt.value = p.patient_id;
+      opt.textContent = `${p.patient_id} — ${p.name} (${p.age}y, ${p.symptoms.join(', ')})`;
+      sel.appendChild(opt);
+    });
+  } catch (e) {
+    document.getElementById('patient-select').innerHTML = '<option>Error loading patients</option>';
+  }
+}
+loadPatients();
+
+// ── Risk Assessment ───────────────────────────────────────────────────
+let currentPatientId = null;
+
+async function runAssessment() {
+  const pid = document.getElementById('patient-select').value;
+  if (!pid) { alert('Please select a patient.'); return; }
+
+  currentPatientId = pid;
+  const btn = document.getElementById('assess-btn');
+  const resultDiv = document.getElementById('assess-result');
+  const evalDiv = document.getElementById('assess-eval');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>Assessing...';
+  resultDiv.innerHTML = '';
+  evalDiv.innerHTML = '';
+
+  try {
+    const res = await fetch('/assess', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ patient_id: pid }),
+    });
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.detail || res.statusText);
+    }
+    const data = await res.json();
+    resultDiv.innerHTML = renderAssessment(data);
+
+    // Start polling for evaluation results
+    evalDiv.innerHTML = renderEvalLoading();
+    pollAssessEvaluation(pid);
+  } catch (e) {
+    resultDiv.innerHTML = `<div class="error-msg">Error: ${e.message}</div>`;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Assess Risk';
+  }
+}
+
+function pollAssessEvaluation(patientId) {
+  const evalDiv = document.getElementById('assess-eval');
+  let attempts = 0;
+  const maxAttempts = 30; // poll for up to 60 seconds
+
+  const interval = setInterval(async () => {
+    attempts++;
+    // Stop if user switched to a different patient
+    if (currentPatientId !== patientId || attempts > maxAttempts) {
+      clearInterval(interval);
+      if (attempts > maxAttempts) {
+        evalDiv.innerHTML = renderEvalTimeout();
+      }
+      return;
+    }
+
+    try {
+      const res = await fetch(`/assess/${patientId}/evaluation`);
+      const data = await res.json();
+      if (data.evaluation_status === 'complete' && data.evaluation) {
+        clearInterval(interval);
+        evalDiv.innerHTML = renderEvalPanel(data.evaluation, 'Assessment');
+      }
+    } catch (_) { /* keep polling */ }
+  }, 2000);
+}
+
+function badgeClass(level) {
+  const l = (level || '').toLowerCase();
+  if (l.includes('urgent referral')) return 'urgent-referral';
+  if (l.includes('urgent investigation')) return 'urgent-investigation';
+  if (l.includes('non-urgent')) return 'non-urgent';
+  if (l.includes('no cancer')) return 'no-indicators';
+  return 'error';
+}
+
+function renderAssessment(d) {
+  let html = `<div class="result-box">
+    <h3>${d.patient_name || d.patient_id} &mdash; <span class="badge ${badgeClass(d.risk_level)}">${d.risk_level}</span></h3>`;
+  if (d.safety_warning)
+    html += `<div class="grounding-warning"><strong>Safety Warning:</strong> ${esc(d.safety_warning)}</div>`;
+  if (d.grounding_flags && d.grounding_flags.length)
+    html += `<div class="grounding-warning"><strong>Grounding Warning:</strong> ${d.grounding_flags.join(', ')} — this assessment may not be fully supported by the NG12 guidelines. Please verify independently.</div>`;
+  if (d.cancer_type_suspected)
+    html += `<div class="field"><span class="field-label">Suspected Cancer</span><div class="field-value">${d.cancer_type_suspected}</div></div>`;
+  html += `<div class="field"><span class="field-label">Reasoning</span><div class="field-value">${d.reasoning}</div></div>`;
+  if (d.recommendations && d.recommendations.length)
+    html += `<div class="field"><span class="field-label">Recommendations</span><div class="field-value"><ul>${d.recommendations.map(r=>'<li>'+r+'</li>').join('')}</ul></div></div>`;
+  if (d.citations && d.citations.length) {
+    html += `<div class="field"><span class="field-label">Citations</span>`;
+    d.citations.forEach(c => {
+      html += `<div class="citation"><span class="citation-page">[NG12 p.${c.page}]</span> <code>${c.chunk_id}</code><br/>${esc(c.excerpt)}</div>`;
+    });
+    html += `</div>`;
+  }
+  if (d.disclaimer)
+    html += `<div class="disclaimer-banner"><strong>Disclaimer:</strong> ${esc(d.disclaimer)}</div>`;
+  html += `</div>`;
+  return html;
+}
+
+function esc(s) { const el = document.createElement('span'); el.textContent = s || ''; return el.innerHTML; }
+
+// ── Evaluation rendering ──────────────────────────────────────────────
+function renderEvalLoading() {
+  return `<div class="eval-panel">
+    <h4><span class="eval-spinner"></span> LLM Judge Evaluation in progress...</h4>
+    <p style="font-size:0.82rem;color:#666;">The response is being evaluated on multiple quality criteria (faithfulness, correctness, citation accuracy, completeness, safety). Results will appear here automatically.</p>
+  </div>`;
+}
+
+function renderEvalTimeout() {
+  return `<div class="eval-panel">
+    <h4>Evaluation</h4>
+    <p style="font-size:0.82rem;color:#888;">Evaluation timed out. You can check manually via the API.</p>
+  </div>`;
+}
+
+function renderEvalPanel(evaluation, label) {
+  const verdict = evaluation.overall_verdict || 'N/A';
+  const score = evaluation.score || '';
+  const verdictClass = verdict === 'PASS' ? 'pass' : 'fail';
+  const criteria = evaluation.criteria || {};
+
+  let html = `<div class="eval-panel">
+    <h4>LLM Judge Evaluation &mdash; ${label}</h4>
+    <div class="eval-overall">
+      Overall: <span class="eval-verdict ${verdictClass}">${verdict}</span>
+      ${score ? `<span style="font-size:0.82rem;color:#666;">(${score})</span>` : ''}
+    </div>
+    <div class="eval-criteria">`;
+
+  for (const [name, result] of Object.entries(criteria)) {
+    const v = (result.verdict || '').toUpperCase();
+    const vClass = v === 'PASS' ? 'pass' : 'fail';
+    const displayName = name.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+    const reasoning = result.reasoning || '';
+
+    html += `<div class="eval-criterion">
+      <details>
+        <summary>
+          <span class="eval-verdict ${vClass}">${v}</span>
+          <span>${displayName}</span>
+        </summary>
+        <div class="eval-reasoning">${esc(reasoning)}</div>
+      </details>
+    </div>`;
+  }
+
+  html += `</div>`;
+
+  if (evaluation.critical_issues && evaluation.critical_issues.length) {
+    html += `<div style="margin-top:0.5rem;font-size:0.82rem;color:#721c24;">
+      <strong>Critical Issues:</strong> ${evaluation.critical_issues.map(esc).join(', ')}
+    </div>`;
+  }
+
+  html += `</div>`;
+  return html;
+}
+
+// ── Chat ──────────────────────────────────────────────────────────────
+const SESSION_ID = 'session_' + Math.random().toString(36).slice(2, 10);
+
+async function sendChat() {
+  const input = document.getElementById('chat-input');
+  const msg = input.value.trim();
+  if (!msg) return;
+  input.value = '';
+
+  appendChatMsg('user', msg);
+  const btn = document.getElementById('chat-btn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>';
+
+  try {
+    const res = await fetch('/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ session_id: SESSION_ID, message: msg }),
+    });
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.detail || res.statusText);
+    }
+    const data = await res.json();
+    appendChatMsg('assistant', data.answer, data.citations, data.grounding_flags, data.disclaimer);
+
+    // Start polling for chat evaluation
+    const evalDiv = document.getElementById('chat-eval');
+    evalDiv.innerHTML = renderEvalLoading();
+    pollChatEvaluation(SESSION_ID);
+  } catch (e) {
+    appendChatMsg('assistant', 'Error: ' + e.message);
+  }
+
+  btn.disabled = false;
+  btn.textContent = 'Send';
+}
+
+function pollChatEvaluation(sessionId) {
+  const evalDiv = document.getElementById('chat-eval');
+  let attempts = 0;
+  const maxAttempts = 30;
+
+  const interval = setInterval(async () => {
+    attempts++;
+    if (attempts > maxAttempts) {
+      clearInterval(interval);
+      evalDiv.innerHTML = renderEvalTimeout();
+      return;
+    }
+
+    try {
+      const res = await fetch(`/chat/${sessionId}/evaluation`);
+      const data = await res.json();
+      if (data.evaluation_status === 'complete' && data.evaluation) {
+        clearInterval(interval);
+        evalDiv.innerHTML = renderEvalPanel(data.evaluation, 'Chat');
+      }
+    } catch (_) { /* keep polling */ }
+  }, 2000);
+}
+
+function appendChatMsg(role, text, citations, groundingFlags, disclaimer) {
+  const win = document.getElementById('chat-window');
+  let html = `<div class="chat-msg ${role}">
+    <div class="role-tag">${role === 'user' ? 'You' : 'NG12 Assistant'}</div>
+    <div class="bubble">${esc(text)}</div>`;
+  if (groundingFlags && groundingFlags.length)
+    html += `<div class="grounding-warning"><strong>Grounding Warning:</strong> ${groundingFlags.join(', ')} — response may not be fully supported by NG12 evidence.</div>`;
+  if (citations && citations.length) {
+    html += `<div class="chat-citations"><details><summary>${citations.length} citation(s)</summary>`;
+    citations.forEach(c => {
+      html += `<div class="citation"><span class="citation-page">[NG12 p.${c.page}]</span> <code>${c.chunk_id}</code><br/>${esc(c.excerpt)}</div>`;
+    });
+    html += `</details></div>`;
+  }
+  if (disclaimer)
+    html += `<div class="disclaimer-banner"><strong>Disclaimer:</strong> ${esc(disclaimer)}</div>`;
+  html += `</div>`;
+  win.innerHTML += html;
+  win.scrollTop = win.scrollHeight;
+}
+</script>
+</body>
+</html>
